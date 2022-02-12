@@ -9,63 +9,117 @@
 <body>
 
     <main class="container">
-
-        <nav>
-            <ul>
-                <li><strong>Playlistr for Spotify</strong></li>
-            </ul>
-        </nav>
-
         <div x-data="data()" x-init="start()">
+
+            <nav>
+                <ul>
+                    <li><strong>playlistex for Spotify</strong></li>
+                </ul>
+                <ul>
+                    <li x-show="userName"><kbd x-text="userName"></kbd></a></li>
+                </ul>
+            </nav>
             <br>
-            <p x-show="userName">Hi, <x x-text="userName"></x>! You can use this tool to export and import Spotify playlists.</p>
+
+            This site allows you to export and import Spotify playlists. It runs only in your browser, does not share your user data and is open source.
+            <br>
 
             <article>
+                <div x-show="!loggedIn">
+                    <button @click="redirectLogin()">Sign In to view your playlists</button>
+                </div>
+                <div x-show="loggedIn && playlists == null" aria-busy="true">Loading playlists...</div>
+                <div x-show="loggedIn && playlists != null">
+                    <template x-for="(playlist, index) in playlists">
+                        <nav>
+                            <ul>
+                                <li><img x-bind:src="playlist.images[0].url" width="100" height="100"></img></li>
+                                <li>
+                                    <p x-text="playlist.name"></p>
+                                </li>
+                            </ul>
+                            <ul>
+                                <li><button @click="exportPlaylist(index)">Export</button></li>
+                            </ul>
+                        </nav>
+                        <div>
 
+
+                        </div>
+                    </template>
+                </div>
             </article>
-        </div>
 
+        </div>
     </main>
+
     <script>
 
         const data = () => {
             return {
+                loggedIn: false,
                 authCode: null,
                 authCodeVerifier: null,
                 accessToken: null,
                 userName: null,
+                playlists: null,
                 start: async function () {
                     this.accessToken = localStorage.getItem('accessToken');
                     if (!this.accessToken) {
+                        // Read auth code verifier from local storage. Create new one if it does not exist yet
                         this.authCodeVerifier = localStorage.getItem('authCodeVerifier');
                         if (!this.authCodeVerifier) {
                             this.authCodeVerifier = generateCodeVerfier();
                             localStorage.setItem('authCodeVerifier', this.authCodeVerifier);
                         }
-                        this.authCode = getParameterByName('code');
-                        if (this.authCode == null) {
-                            this.redirectLogin();
-                            return;
+
+                        // Read auth code from callback and write it to local storage
+                        // If there was no callback, try to read it from local storage
+                        // User is not logged In of the auth code is neither in storage nor in callback
+                        let codeFromCallback = getParameterByName('code');
+                        if (codeFromCallback) {
+                            this.authCode = codeFromCallback;
+                            localStorage.setItem('authCode', this.authCode);
+                        } else {
+                            this.authCode = localStorage.getItem('authCode');
                         }
+                        if (this.authCode == null) return;
+
+                        // Fetch access token if auth code is present
                         this.accessToken = await this.fetchAccessToken();
                         localStorage.setItem('accessToken', this.accessToken);
                     }
+
+                    this.loggedIn = true;
                     window.history.replaceState('', '', '/');
                     this.fetchUserName();
                     this.fetchPlaylists();
+                },
+                exportPlaylist: async function (index) {
+                    console.log(this.playlists[index].id);
                 },
                 fetchUserName: async function () {
                     axios.get('https://api.spotify.com/v1/me', { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
                         this.userName = res.data.display_name;
                     }).catch(err => {
-
+                        console.log(err);
+                        if (err.response.status == 401) this.fetchAccessToken();
                     });
                 },
                 fetchPlaylists: async function () {
                     axios.get('https://api.spotify.com/v1/me/playlists', { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
-                        console.log(res.data);
+                        this.playlists = res.data.items;
                     }).catch(err => {
-
+                        console.log(err);
+                        if (err.response.status == 401) this.fetchAccessToken();
+                    });
+                },
+                fetchPlaylistById: async function (id) {
+                    axios.get('https://api.spotify.com/v1/me/playlists/' + id, { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
+                        this.playlists = res.data.items;
+                    }).catch(err => {
+                        console.log(err);
+                        if (err.response.status == 401) this.fetchAccessToken();
                     });
                 },
                 redirectLogin: async function () {
@@ -80,6 +134,7 @@
                     });
                 },
                 fetchAccessToken: async function () {
+                    localStorage.setItem('accessToken', null);
                     return new Promise((resolve) => {
                         axios.post('https://accounts.spotify.com/api/token', urlEncodeObject({
                             grant_type: 'authorization_code',
@@ -88,13 +143,11 @@
                             redirect_uri: 'http://localhost:8080',
                             code_verifier: this.authCodeVerifier
                         })).then(res => {
-                            console.log(res.data);
                             resolve(res.data.access_token);
                         }).catch(err => {
                             console.log(err);
                         })
                     });
-
                 }
             }
         }
