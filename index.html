@@ -21,7 +21,7 @@
             </nav>
             <br>
 
-            This site allows you to export and import Spotify playlists. It runs only in your browser, does not share your user data and is open source.
+            This site can export and import your Spotify playlists. It runs only in your browser, does not share your user data and is open source.
             <br>
 
             <article>
@@ -53,6 +53,8 @@
         </div>
     </main>
 
+    <a id="downloadAnchorElem" style="display:none"></a>
+
     <script>
 
         const data = () => {
@@ -65,61 +67,109 @@
                 playlists: null,
                 start: async function () {
                     this.accessToken = localStorage.getItem('accessToken');
+                    this.refreshToken = localStorage.getItem('refreshToken');
+
                     if (!this.accessToken) {
                         // Read auth code verifier from local storage. Create new one if it does not exist yet
                         this.authCodeVerifier = localStorage.getItem('authCodeVerifier');
+
                         if (!this.authCodeVerifier) {
                             this.authCodeVerifier = generateCodeVerfier();
                             localStorage.setItem('authCodeVerifier', this.authCodeVerifier);
                         }
 
-                        // Read auth code from callback and write it to local storage
-                        // If there was no callback, try to read it from local storage
-                        // User is not logged In of the auth code is neither in storage nor in callback
-                        let codeFromCallback = getParameterByName('code');
-                        if (codeFromCallback) {
-                            this.authCode = codeFromCallback;
-                            localStorage.setItem('authCode', this.authCode);
-                        } else {
-                            this.authCode = localStorage.getItem('authCode');
-                        }
-                        if (this.authCode == null) return;
+                        // Read auth code from callback
+                        // No need to store it because it only works once to fetch an access token
+                        this.authCode = getParameterByName('code');
+                        window.history.replaceState('', '', '/');
 
                         // Fetch access token if auth code is present
-                        this.accessToken = await this.fetchAccessToken();
-                        localStorage.setItem('accessToken', this.accessToken);
+                        if (this.authCode) this.accessToken = await this.fetchAccessToken();
                     }
 
-                    this.loggedIn = true;
-                    window.history.replaceState('', '', '/');
-                    this.fetchUserName();
-                    this.fetchPlaylists();
+                    if (this.accessToken) {
+                        this.loggedIn = true;
+                        this.userName = await this.fetchUserName();
+                        this.playlists = await this.fetchPlaylists();
+                    }
                 },
                 exportPlaylist: async function (index) {
-                    console.log(this.playlists[index].id);
+                    let playlistId = this.playlists[index].id;
+                    let playlistData = await this.fetchPlaylistById(playlistId);
+                    let playlist = {
+                        name: playlistData.name,
+                        tracks: []
+                    }
+
+                    for (item of playlistData.tracks.items) {
+                        let track = {
+                            spotifyId: item.track.id,
+                            name: item.track.name
+                        }
+                        playlist.tracks.push(track);
+                    }
+
+                    // Intial call comes with limit 100 and offset 0
+                    // Track API call has maximum offset of 50
+
+                    let total = playlistData.tracks.total;
+                    for (let offset = 100; offset + 50 < playlistData.tracks.total; offset += 50) {
+                        let tracksList = await this.fetchTracksFromPlaylist(playlistId, offset);
+                        let track = {
+                            spotifyId: item.track.id,
+                            name: item.track.name
+                        }
+                        playlist.tracks.push(track);
+                    }
+
+                    let fileName = playlistData.name.toLowerCase().replaceAll(' ', '-');
+
+                    // https://stackoverflow.com/a/30800715/17793205
+                    var dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(playlist));
+                    var dlAnchorElem = document.getElementById('downloadAnchorElem');
+                    dlAnchorElem.setAttribute('href', dataStr);
+                    dlAnchorElem.setAttribute('download', 'playlistex-' + fileName + '.json');
+                    dlAnchorElem.click();
                 },
                 fetchUserName: async function () {
-                    axios.get('https://api.spotify.com/v1/me', { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
-                        this.userName = res.data.display_name;
-                    }).catch(err => {
-                        console.log(err);
-                        if (err.response.status == 401) this.fetchAccessToken();
+                    return new Promise((resolve) => {
+                        axios.get('https://api.spotify.com/v1/me', { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
+                            resolve(res.data.display_name);
+                        }).catch(err => {
+                            console.log(err);
+                            reject();
+                            if (err.response.status == 401) this.refreshAccessToken();
+                        });
                     });
                 },
                 fetchPlaylists: async function () {
-                    axios.get('https://api.spotify.com/v1/me/playlists', { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
-                        this.playlists = res.data.items;
-                    }).catch(err => {
-                        console.log(err);
-                        if (err.response.status == 401) this.fetchAccessToken();
+                    return new Promise((resolve) => {
+                        axios.get('https://api.spotify.com/v1/me/playlists', { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
+                            resolve(res.data.items);
+                        }).catch(err => {
+                            console.log(err);
+                            reject();
+                        });
                     });
                 },
                 fetchPlaylistById: async function (id) {
-                    axios.get('https://api.spotify.com/v1/me/playlists/' + id, { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
-                        this.playlists = res.data.items;
-                    }).catch(err => {
-                        console.log(err);
-                        if (err.response.status == 401) this.fetchAccessToken();
+                    return new Promise((resolve) => {
+                        axios.get('https://api.spotify.com/v1/playlists/' + id, { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
+                            resolve(res.data);
+                        }).catch(err => {
+                            console.log(err);
+                            reject();
+                        });
+                    });
+                },
+                fetchTracksFromPlaylist: async function (id, offset) {
+                    return new Promise((resolve) => {
+                        axios.get('https://api.spotify.com/v1/playlists/' + id + '/tracks?limit=50&offset=' + offset, { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
+                            resolve(res.data);
+                        }).catch(err => {
+                            console.log(err);
+                            reject();
+                        });
                     });
                 },
                 redirectLogin: async function () {
@@ -134,7 +184,6 @@
                     });
                 },
                 fetchAccessToken: async function () {
-                    localStorage.setItem('accessToken', null);
                     return new Promise((resolve) => {
                         axios.post('https://accounts.spotify.com/api/token', urlEncodeObject({
                             grant_type: 'authorization_code',
@@ -143,12 +192,32 @@
                             redirect_uri: 'http://localhost:8080',
                             code_verifier: this.authCodeVerifier
                         })).then(res => {
+                            let accessToken = res.data.access_token;
+                            let refreshToken = res.data.refresh_token;
+                            localStorage.setItem('accessToken', accessToken);
+                            localStorage.setItem('refreshToken', refreshToken);
                             resolve(res.data.access_token);
                         }).catch(err => {
                             console.log(err);
+                            reject();
                         })
                     });
-                }
+                },
+                refreshAccessToken: async function () {
+                    return new Promise((resolve) => {
+                        axios.post('https://accounts.spotify.com/api/token', urlEncodeObject({
+                            grant_type: 'refresh_token',
+                            refresh_token: this.refreshToken
+                        })).then(res => {
+                            let accessToken = res.data.access_token;
+                            localStorage.setItem('accessToken', accessToken);
+                            resolve(res.data.access_token);
+                        }).catch(err => {
+                            console.log(err);
+                            reject();
+                        })
+                    });
+                },
             }
         }
 
