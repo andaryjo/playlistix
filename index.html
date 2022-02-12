@@ -1,0 +1,151 @@
+<html>
+
+<head>
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+
+<body>
+
+    <main class="container">
+
+        <nav>
+            <ul>
+                <li><strong>Playlistr for Spotify</strong></li>
+            </ul>
+        </nav>
+
+        <div x-data="data()" x-init="start()">
+            <br>
+            <p x-show="userName">Hi, <x x-text="userName"></x>! You can use this tool to export and import Spotify playlists.</p>
+
+            <article>
+
+            </article>
+        </div>
+
+    </main>
+    <script>
+
+        const data = () => {
+            return {
+                authCode: null,
+                authCodeVerifier: null,
+                accessToken: null,
+                userName: null,
+                start: async function () {
+                    this.accessToken = localStorage.getItem('accessToken');
+                    if (!this.accessToken) {
+                        this.authCodeVerifier = localStorage.getItem('authCodeVerifier');
+                        if (!this.authCodeVerifier) {
+                            this.authCodeVerifier = generateCodeVerfier();
+                            localStorage.setItem('authCodeVerifier', this.authCodeVerifier);
+                        }
+                        this.authCode = getParameterByName('code');
+                        if (this.authCode == null) {
+                            this.redirectLogin();
+                            return;
+                        }
+                        this.accessToken = this.fetchAccessToken();
+                        localStorage.setItem('accessToken', this.accessToken);
+                    }
+                    window.history.replaceState('', '', '/');
+                    this.fetchUserName();
+                    this.fetchPlaylists();
+                },
+                fetchUserName: async function () {
+                    axios.get('https://api.spotify.com/v1/me', { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
+                        this.userName = res.data.display_name;
+                    }).catch(err => {
+
+                    });
+                },
+                fetchPlaylists: async function () {
+                    axios.get('https://api.spotify.com/v1/me/playlists', { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
+                        console.log(res.data);
+                    }).catch(err => {
+
+                    });
+                },
+                redirectLogin: async function () {
+                    window.location.href = 'https://accounts.spotify.com/authorize?' + urlEncodeObject({
+                        response_type: 'code',
+                        client_id: '330b334d020847a3bf0ff98ab27168f4',
+                        scope: 'playlist-read-private,playlist-read-collaborative',
+                        show_dialog: 'false',
+                        redirect_uri: 'http://localhost:8080',
+                        code_challenge_method: 'S256',
+                        code_challenge: await getPkceChallengeFromVerifier(this.authCodeVerifier)
+                    });
+                },
+                fetchAccessToken: async function () {
+                    return new Promise((resolve) => {
+                        axios.post('https://accounts.spotify.com/api/token', urlEncodeObject({
+                            grant_type: 'authorization_code',
+                            client_id: '330b334d020847a3bf0ff98ab27168f4',
+                            code: this.authCode,
+                            redirect_uri: 'http://localhost:8080',
+                            code_verifier: this.authCodeVerifier
+                        })).then(res => {
+                            resolve(accessToken);
+                        }).catch(err => {
+                            console.log(err);
+                        })
+                    });
+
+                }
+            }
+        }
+
+        // https://stackoverflow.com/a/901144
+        function getParameterByName(name, url = window.location.href) {
+            name = name.replace(/[\[\]]/g, '\\$&');
+            var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'), results = regex.exec(url);
+            if (!results) return null;
+            if (!results[2]) return '';
+            return decodeURIComponent(results[2].replace(/\+/g, ' '));
+        }
+
+        // https://stackoverflow.com/a/1714899/17793205
+        function urlEncodeObject(obj) {
+            var str = [];
+            for (var p in obj)
+                if (obj.hasOwnProperty(p)) {
+                    str.push(encodeURIComponent(p) + '=' + encodeURIComponent(obj[p]));
+                }
+            return str.join('&');
+        }
+
+        function generateCodeVerfier() {
+            var verifier = '';
+            var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            var charactersLength = characters.length;
+            for (var i = 0; i < 128; i++) {
+                verifier += characters.charAt(Math.floor(Math.random() * charactersLength));
+            }
+            return verifier;
+        }
+
+        // https://stackoverflow.com/a/59913241/17793205
+        function sha256(plain) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(plain);
+            return window.crypto.subtle.digest('SHA-256', data);
+        }
+
+        function base64urlencode(a) {
+            return btoa(String.fromCharCode.apply(null, new Uint8Array(a))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        async function getPkceChallengeFromVerifier(verifier) {
+            hashed = await sha256(verifier);
+            base64encoded = base64urlencode(hashed);
+            return base64encoded;
+        }
+
+    </script>
+
+</body>
+
+</html>
