@@ -47,7 +47,7 @@
                             this.redirectLogin();
                             return;
                         }
-                        this.accessToken = this.fetchAccessToken();
+                        this.accessToken = await this.fetchAccessToken();
                         localStorage.setItem('accessToken', this.accessToken);
                     }
                     window.history.replaceState('', '', '/');
@@ -88,7 +88,8 @@
                             redirect_uri: 'http://localhost:8080',
                             code_verifier: this.authCodeVerifier
                         })).then(res => {
-                            resolve(accessToken);
+                            console.log(res.data);
+                            resolve(res.data.access_token);
                         }).catch(err => {
                             console.log(err);
                         })
