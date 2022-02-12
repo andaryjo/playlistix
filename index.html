@@ -82,7 +82,7 @@
                         // Read auth code from callback
                         // No need to store it because it only works once to fetch an access token
                         this.authCode = getParameterByName('code');
-                        window.history.replaceState('', '', '/');
+                        window.history.replaceState('', '', window.location.pathname);
 
                         // Fetch access token if auth code is present
                         if (this.authCode) this.accessToken = await this.fetchAccessToken();
