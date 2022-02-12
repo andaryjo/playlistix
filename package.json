@@ -1,12 +1,12 @@
 {
-  "name": "mappolon",
-  "version": "1.0.0",
-  "description": "",
+  "name": "playlistex",
+  "version": "0.1.0",
+  "description": "playlistex for Spotify lets you export and import playlists",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": "github.com/andaryjo",
   "license": "ISC",
   "dependencies": {
     "hapi": "^18.1.0"
