@@ -63,6 +63,7 @@
                 authCode: null,
                 authCodeVerifier: null,
                 accessToken: null,
+                redirectURI: window.location.href.includes("github") ? "https://andaryjo.github.com/playlistex" : "http://localhost:8080",
                 userName: null,
                 playlists: null,
                 start: async function () {
@@ -114,12 +115,14 @@
 
                     let total = playlistData.tracks.total;
                     for (let offset = 100; offset + 50 < playlistData.tracks.total; offset += 50) {
-                        let tracksList = await this.fetchTracksFromPlaylist(playlistId, offset);
-                        let track = {
-                            spotifyId: item.track.id,
-                            name: item.track.name
+                        let itemsList = await this.fetchTracksFromPlaylist(playlistId, offset);
+                        for (item of itemsList) {
+                            let track = {
+                                spotifyId: item.track.id,
+                                name: item.track.name
+                            }
+                            playlist.tracks.push(track);
                         }
-                        playlist.tracks.push(track);
                     }
 
                     let fileName = playlistData.name.toLowerCase().replaceAll(' ', '-');
@@ -165,7 +168,7 @@
                 fetchTracksFromPlaylist: async function (id, offset) {
                     return new Promise((resolve, reject) => {
                         axios.get('https://api.spotify.com/v1/playlists/' + id + '/tracks?limit=50&offset=' + offset, { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
-                            resolve(res.data);
+                            resolve(res.data.items);
                         }).catch(err => {
                             console.log(err);
                             reject();
@@ -178,7 +181,7 @@
                         client_id: '330b334d020847a3bf0ff98ab27168f4',
                         scope: 'playlist-read-private,playlist-read-collaborative',
                         show_dialog: 'false',
-                        redirect_uri: 'http://localhost:8080',
+                        redirect_uri: this.redirectURI,
                         code_challenge_method: 'S256',
                         code_challenge: await getPkceChallengeFromVerifier(this.authCodeVerifier)
                     });
@@ -189,7 +192,7 @@
                             grant_type: 'authorization_code',
                             client_id: '330b334d020847a3bf0ff98ab27168f4',
                             code: this.authCode,
-                            redirect_uri: 'http://localhost:8080',
+                            redirect_uri: this.redirectURI,
                             code_verifier: this.authCodeVerifier
                         })).then(res => {
                             let accessToken = res.data.access_token;
