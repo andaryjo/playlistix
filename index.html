@@ -1,9 +1,19 @@
 <html>
 
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>playlistix for Spotify</title>
     <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        :root:not([data-theme="dark"]) {
+            --primary: #004D40;
+            --primary-hover: #004D40;
+            --primary-focus: #004D40;
+        }
+    </style>
 </head>
 
 <body>
@@ -13,7 +23,7 @@
 
             <nav>
                 <ul>
-                    <li><strong>playlistex for Spotify</strong></li>
+                    <li><strong>playlistix for Spotify</strong></li>
                 </ul>
                 <ul>
                     <li x-show="userName"><kbd x-text="userName"></kbd></a></li>
@@ -51,6 +61,8 @@
             </article>
 
         </div>
+
+        <footer><small>Made with ❤️. This site is not affiliated with Spotify AB.</small></footer>
     </main>
 
     <a id="downloadAnchorElem" style="display:none"></a>
@@ -63,7 +75,7 @@
                 authCode: null,
                 authCodeVerifier: null,
                 accessToken: null,
-                redirectURI: window.location.href.includes("github") ? "https://andaryjo.github.io/playlistex/" : "http://localhost:8080",
+                redirectURI: window.location.href.includes("github") ? "https://andaryjo.github.io/playlistix/" : "http://localhost:8080",
                 userName: null,
                 playlists: null,
                 start: async function () {
