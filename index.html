@@ -110,7 +110,8 @@
                 exportPlaylist: async function (index) {
                     let playlistId = this.playlists[index].id;
                     let playlistData = await this.fetchPlaylistById(playlistId);
-                    let playlist = {
+                    let output = {
+                        structure: "playlistix-playlist-r1",
                         name: playlistData.name,
                         tracks: []
                     }
@@ -120,11 +121,8 @@
                             spotifyId: item.track.id,
                             name: item.track.name
                         }
-                        playlist.tracks.push(track);
+                        output.tracks.push(track);
                     }
-
-                    // Intial call comes with limit 100 and offset 0
-                    // Track API call has maximum offset of 50
 
                     let total = playlistData.tracks.total;
                     for (let offset = 100; offset + 50 < playlistData.tracks.total; offset += 50) {
@@ -134,14 +132,14 @@
                                 spotifyId: item.track.id,
                                 name: item.track.name
                             }
-                            playlist.tracks.push(track);
+                            output.tracks.push(track);
                         }
                     }
 
                     let fileName = playlistData.name.toLowerCase().replaceAll(' ', '-');
 
                     // https://stackoverflow.com/a/30800715/17793205
-                    var dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(playlist));
+                    var dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(output));
                     var dlAnchorElem = document.getElementById('downloadAnchorElem');
                     dlAnchorElem.setAttribute('href', dataStr);
                     dlAnchorElem.setAttribute('download', 'playlistix-' + fileName + '.json');
