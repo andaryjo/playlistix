@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>playlistix for Spotify</title>
     <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <style>
@@ -26,7 +27,8 @@
                     <li><strong>playlistix for Spotify</strong></li>
                 </ul>
                 <ul>
-                    <li x-show="userName"><kbd x-text="userName"></kbd></a></li>
+                    <li x-show="userName"><kbd x-text="userName"></kbd></li>
+                    <li x-show="userName"><span class="material-icons">exit_to_app</span></li>
                 </ul>
             </nav>
             <br>
@@ -52,10 +54,6 @@
                                 <li><button @click="exportPlaylist(index)">Export</button></li>
                             </ul>
                         </nav>
-                        <div>
-
-
-                        </div>
                     </template>
                 </div>
             </article>
@@ -104,7 +102,16 @@
                     if (this.accessToken) {
                         this.loggedIn = true;
                         this.userName = await this.fetchUserName();
-                        this.playlists = await this.fetchPlaylists();
+
+                        let playlists = [];
+                        let offset = 0; let total = 50;
+                        while (offset < total) {
+                            let playlistsData = await this.fetchPlaylists(offset);
+                            total = playlistsData.total;
+                            playlists.push(...playlistsData.items);
+                            offset += 50;
+                        }
+                        this.playlists = playlists;
                     }
                 },
                 exportPlaylist: async function (index) {
@@ -126,8 +133,8 @@
 
                     let total = playlistData.tracks.total;
                     for (let offset = 100; offset + 50 < playlistData.tracks.total; offset += 50) {
-                        let itemsList = await this.fetchTracksFromPlaylist(playlistId, offset);
-                        for (item of itemsList) {
+                        let tracksData = await this.fetchTracksFromPlaylist(playlistId, offset);
+                        for (item of tracksData.items) {
                             let track = {
                                 spotifyId: item.track.id,
                                 name: item.track.name
@@ -156,10 +163,10 @@
                         });
                     });
                 },
-                fetchPlaylists: async function () {
+                fetchPlaylists: async function (offset = 0) {
                     return new Promise((resolve, reject) => {
-                        axios.get('https://api.spotify.com/v1/me/playlists', { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
-                            resolve(res.data.items);
+                        axios.get('https://api.spotify.com/v1/me/playlists?limit=50&offset=' + offset, { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
+                            resolve(res.data);
                         }).catch(err => {
                             console.log(err);
                             reject();
@@ -179,7 +186,7 @@
                 fetchTracksFromPlaylist: async function (id, offset) {
                     return new Promise((resolve, reject) => {
                         axios.get('https://api.spotify.com/v1/playlists/' + id + '/tracks?limit=50&offset=' + offset, { headers: { 'Authorization': 'Bearer ' + this.accessToken } }).then(res => {
-                            resolve(res.data.items);
+                            resolve(res.data);
                         }).catch(err => {
                             console.log(err);
                             reject();
