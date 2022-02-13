@@ -71,11 +71,12 @@
 
         const data = () => {
             return {
+                clientId: 'b7a4237d915042bfb81ea764fb0a610c',
                 loggedIn: false,
                 authCode: null,
                 authCodeVerifier: null,
                 accessToken: null,
-                redirectURI: window.location.href.includes("github") ? "https://andaryjo.github.io/playlistix/" : "http://localhost:8080",
+                redirectURI: window.location.href.includes('github') ? 'https://andaryjo.github.io/playlistix/' : 'http://localhost:8080',
                 userName: null,
                 playlists: null,
                 start: async function () {
@@ -143,7 +144,7 @@
                     var dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(playlist));
                     var dlAnchorElem = document.getElementById('downloadAnchorElem');
                     dlAnchorElem.setAttribute('href', dataStr);
-                    dlAnchorElem.setAttribute('download', 'playlistex-' + fileName + '.json');
+                    dlAnchorElem.setAttribute('download', 'playlistix-' + fileName + '.json');
                     dlAnchorElem.click();
                 },
                 fetchUserName: async function () {
@@ -190,7 +191,7 @@
                 redirectLogin: async function () {
                     window.location.href = 'https://accounts.spotify.com/authorize?' + urlEncodeObject({
                         response_type: 'code',
-                        client_id: '330b334d020847a3bf0ff98ab27168f4',
+                        client_id: this.clientId,
                         scope: 'playlist-read-private,playlist-read-collaborative',
                         show_dialog: 'false',
                         redirect_uri: this.redirectURI,
@@ -202,7 +203,7 @@
                     return new Promise((resolve, reject) => {
                         axios.post('https://accounts.spotify.com/api/token', urlEncodeObject({
                             grant_type: 'authorization_code',
-                            client_id: '330b334d020847a3bf0ff98ab27168f4',
+                            client_id: this.clientId,
                             code: this.authCode,
                             redirect_uri: this.redirectURI,
                             code_verifier: this.authCodeVerifier
@@ -222,7 +223,8 @@
                     return new Promise((resolve, reject) => {
                         axios.post('https://accounts.spotify.com/api/token', urlEncodeObject({
                             grant_type: 'refresh_token',
-                            refresh_token: this.refreshToken
+                            refresh_token: this.refreshToken,
+                            client_id: this.clientId
                         })).then(res => {
                             let accessToken = res.data.access_token;
                             localStorage.setItem('accessToken', accessToken);
